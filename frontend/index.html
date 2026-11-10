@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PolyNexus</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --mauve: #6B4A4A;
+    --rose: #C48B8A;
+    --pink: #E8CFCF;
+    --bg: #FBF9F8;
+    --panel: #FBF9F8; 
+    --glass-bg: #E8CFCF;
+    --text: #3A2A2A;
+    --text-muted: #8B6A6A;
+    --card-border: #6B4A4A;
+    --active: #5C3A3A;
+    --shadow: #C48B8A;
+  }
+  [data-theme="dark"] {
+    --mauve: #E8CFCF;
+    --rose: #C48B8A;
+    --pink: #4A3535;
+    --bg: #1A1212;
+    --panel: #1A1212;
+    --glass-bg: #2A1E1E;
+    --text: #F5EDED;
+    --text-muted: #BFA0A0;
+    --card-border: #E8CFCF;
+    --active: #E8CFCF;
+    --shadow: #6B4A4A;
+  }
+
+  * { 
+    box-sizing: border-box; 
+    margin: 0; 
+    padding: 0; 
+    border-radius: 0 !important; 
+    font-family: 'VT323', monospace !important; 
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  
+  body {
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow: hidden;
+    transition: background 0.1s, color 0.1s;
+  }
+
+  /* PIXEL ART UI COMPONENTS */
+  .pixel-border {
+    border: 3px solid var(--card-border);
+    box-shadow: 4px 4px 0px var(--shadow);
+  }
+  
+  .pixel-btn {
+    background: var(--bg);
+    border: 3px solid var(--card-border);
+    box-shadow: 4px 4px 0px var(--shadow);
+    color: var(--mauve);
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  .pixel-btn:active {
+    transform: translate(4px, 4px);
+    box-shadow: 0px 0px 0px transparent;
+  }
+
+  header {
+    height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 1.5rem;
+    background: var(--panel);
+    border-bottom: 4px solid var(--card-border);
+    z-index: 50; position: relative;
+  }
+  .header-left { display: flex; align-items: center; gap: 1rem; }
+  .logo {
+    font-size: 2rem; font-weight: 500;
+    color: var(--mauve); letter-spacing: 2px;
+  }
+  .header-right { display: flex; align-items: center; gap: 1.5rem; }
+  
+  .sidebar-toggle-btn {
+    background: transparent; border: none; color: var(--mauve);
+    font-size: 2rem; cursor: pointer; padding: 0 0.5rem;
+  }
+  .sidebar-toggle-btn:hover { color: var(--rose); }
+
+  .toggle-group {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-size: 1.2rem; color: var(--text-muted);
+  }
+  
+  .switch {
+    width: 44px; height: 24px; background: var(--bg);
+    border: 3px solid var(--card-border); position: relative; cursor: pointer;
+  }
+  .switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 14px; height: 14px; background: var(--mauve);
+    transition: transform 0.1s;
+  }
+  [data-theme="dark"] .theme-switch::after { transform: translateX(18px); }
+
+  /* SHARE MENU STYLES */
+  .share-container { position: relative; }
+  .share-btn {
+    padding: 0.4rem 1rem; font-size: 1.2rem;
+    background: var(--bg); border: 3px solid var(--card-border);
+    box-shadow: 4px 4px 0px var(--shadow); color: var(--mauve); cursor: pointer;
+    transition: all 0.1s;
+  }
+  .share-btn:active {
+    transform: translate(4px, 4px); box-shadow: none;
+  }
+  .share-menu {
+    position: absolute; top: 110%; right: 0;
+    background: var(--bg); border: 3px solid var(--card-border); box-shadow: 4px 4px 0px var(--shadow);
+    display: none; flex-direction: column; min-width: 160px; z-index: 100;
+  }
+  .share-menu.active { display: flex; }
+  .share-item {
+    padding: 0.6rem 1rem; border: none; border-bottom: 3px solid var(--card-border);
+    background: transparent; color: var(--mauve); font-size: 1.1rem; cursor: pointer;
+    text-align: left; text-decoration: none; display: block;
+  }
+  .share-item:last-child { border-bottom: none; }
+  .share-item:hover { background: var(--pink); }
+
+  .replay-btn {
+    padding: 0.4rem 1rem; font-size: 1.2rem;
+    background: var(--bg); border: 3px solid var(--card-border);
+    box-shadow: 4px 4px 0px var(--shadow); color: var(--mauve); cursor: pointer;
+    transition: all 0.1s; display: none;
+  }
+  .replay-btn:active { transform: translate(4px, 4px); box-shadow: none; }
+
+  .app {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    height: calc(100vh - 64px);
+    transition: grid-template-columns 0.3s;
+  }
+  .app.sidebar-collapsed { grid-template-columns: 0px 1fr; }
+  .app.sidebar-collapsed .sidebar { overflow: hidden; opacity: 0; pointer-events: none; }
+
+  .sidebar {
+    background: var(--glass-bg);
+    border-right: 4px solid var(--card-border);
+    display: flex; flex-direction: column; overflow: hidden;
+    transition: opacity 0.3s ease;
+  }
+  .sidebar-section { padding: 1rem; border-bottom: 3px dashed var(--card-border); }
+  .sidebar-label { font-size: 1.2rem; font-weight: 600; color: var(--mauve); margin-bottom: 0.8rem; }
+  
+  .subtype-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  .subtype-btn {
+    padding: 0.5rem; background: var(--bg); border: 3px solid var(--card-border);
+    color: var(--mauve); font-size: 1.1rem; cursor: pointer;
+  }
+  .subtype-btn.active { background: var(--mauve); color: var(--bg); }
+
+  .search-wrap { padding: 1rem; }
+  .search-input {
+    width: 100%; padding: 0.5rem 0.8rem; background: var(--bg);
+    border: 3px solid var(--card-border); color: var(--text); font-size: 1.2rem; outline: none;
+  }
+
+  .loci-list { flex: 1; overflow-y: auto; padding: 0 0.5rem 1rem; }
+  .locus-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.5rem 0.8rem; margin-bottom: 0.4rem;
+    border: 3px solid var(--card-border); background: var(--bg);
+    cursor: pointer; font-size: 1.2rem; color: var(--text);
+  }
+  .locus-item:hover { background: var(--pink); }
+  .locus-item.active { background: var(--mauve); color: var(--bg); }
+  .locus-item .rs { font-size: 1rem; opacity: 0.8; }
+
+  .stage { position: relative; display: flex; flex-direction: column; background: var(--bg); overflow: hidden; }
+  #canvas-wrap { flex: 1; position: relative; }
+  #dna-canvas, #pathway-view { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #pathway-view { display: none; padding: 1rem 1.2rem; overflow: hidden; }
+
+  /* DRAGGABLE INFO BAR */
+  .info-bar {
+    position: absolute; top: 20px; left: 50%; margin-left: -320px;
+    width: min(640px, 92%);
+    background: var(--bg); border: 3px solid var(--card-border);
+    box-shadow: 6px 6px 0px var(--shadow);
+    padding: 1rem; z-index: 15;
+    display: flex; gap: 1.2rem; align-items: flex-start;
+    cursor: grab; user-select: none; touch-action: none;
+  }
+  .info-bar:active { cursor: grabbing; }
+  .drag-handle { color: var(--mauve); font-size: 1.5rem; cursor: grab; padding-right: 0.5rem; }
+  .info-bar h3 { font-size: 1.5rem; color: var(--mauve); margin-bottom: 0.2rem; }
+  .info-bar .rs-tag { font-size: 1.1rem; color: var(--text-muted); margin-bottom: 0.4rem; }
+  .info-bar p { font-size: 1.2rem; line-height: 1.3; color: var(--text-muted); }
+  .impact { flex: 1; border-left: 3px dashed var(--card-border); padding-left: 1rem; }
+  .impact strong { color: var(--mauve); font-size: 1.2rem; display: block; margin-bottom: 0.2rem; }
+
+  .view-toggle {
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    display: flex; background: var(--bg); border: 3px solid var(--card-border);
+    box-shadow: 4px 4px 0px var(--shadow); padding: 0.2rem; z-index: 20;
+  }
+  .view-btn {
+    padding: 0.5rem 1.5rem; border: none; background: transparent;
+    color: var(--text-muted); font-size: 1.3rem; cursor: pointer;
+  }
+  .view-btn.active { background: var(--mauve); color: var(--bg); }
+
+  .zoom-controls {
+    position: absolute; bottom: 20px; right: 20px;
+    display: flex; flex-direction: column; gap: 0.5rem; z-index: 20;
+  }
+  .zoom-btn {
+    width: 44px; height: 44px; background: var(--bg); border: 3px solid var(--card-border);
+    box-shadow: 4px 4px 0px var(--shadow); color: var(--mauve); font-size: 1.5rem;
+    cursor: pointer; display: grid; place-items: center;
+  }
+  .zoom-btn:active { transform: translate(4px, 4px); box-shadow: none; }
+
+  .pathway-layout {
+    display: grid; grid-template-columns: 1fr 300px; gap: 1.2rem;
+    max-width: 1200px; margin: 0 auto; height: 100%;
+    pointer-events: none; 
+  }
+  .pathway-main, .pathway-side { pointer-events: auto; }
+
+  .pathway-header {
+    background: var(--bg); border: 3px solid var(--card-border); box-shadow: 4px 4px 0px var(--shadow);
+    padding: 1rem; display: flex; justify-content: space-between; align-items: center;
+  }
+  .pathway-header h3 { font-size: 1.4rem; color: var(--mauve); }
+  .pathway-header span { font-size: 1.1rem; color: var(--text-muted); }
+
+  .svg-wrap {
+    background: var(--bg); border: 3px solid var(--card-border); box-shadow: 4px 4px 0px var(--shadow);
+    padding: 1rem; flex: 1; position: relative; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    background-image: linear-gradient(var(--pink) 1px, transparent 1px), linear-gradient(90deg, var(--pink) 1px, transparent 1px);
+    background-size: 20px 20px;
+    cursor: grab;
+  }
+  .svg-wrap:active { cursor: grabbing; }
+  .pathway-svg { width: 100%; height: 100%; min-height: 320px; transition: none; }
+
+  .pathway-zoom-controls {
+    position: absolute; bottom: 10px; right: 10px;
+    display: flex; flex-direction: column; gap: 0.4rem; z-index: 10;
+  }
+  .pathway-zoom-btn {
+    width: 34px; height: 34px; background: var(--bg); border: 3px solid var(--card-border);
+    box-shadow: 3px 3px 0px var(--shadow); color: var(--mauve); font-size: 1.2rem; cursor: pointer;
+  }
+  .pathway-zoom-btn:active { transform: translate(3px, 3px); box-shadow: none; }
+
+  .node-bg { fill: var(--mauve); }
+  .node-active .node-bg { fill: var(--rose); }
+  .node-dim .node-bg { fill: #C8B8B8; opacity: 0.5; }
+  .node-label { font-size: 14px; font-weight: bold; fill: var(--bg); text-anchor: middle; pointer-events: none; }
+  .node-sub { font-size: 11px; fill: var(--bg); text-anchor: middle; pointer-events: none; }
+  
+  .flow-line {
+    fill: none; stroke: var(--card-border); stroke-width: 4; stroke-dasharray: 8 8;
+    opacity: 0.4; transition: all 0.4s;
+  }
+  .flow-line.active { stroke: var(--mauve); opacity: 1; animation: flowDash 1s linear infinite; }
+  @keyframes flowDash { to { stroke-dashoffset: -16; } }
+
+  .pathway-side {
+    background: var(--bg); border: 3px solid var(--card-border); box-shadow: 4px 4px 0px var(--shadow);
+    padding: 1rem; height: fit-content; position: sticky; top: 0;
+  }
+  .pathway-side h4 { font-size: 1.3rem; color: var(--text-muted); margin-bottom: 0.8rem; }
+  .drug-list { display: flex; flex-direction: column; gap: 0.5rem; }
+  .drug-item {
+    padding: 0.6rem; border: 3px solid var(--card-border); background: var(--bg);
+    color: var(--mauve); font-size: 1.2rem; cursor: pointer; text-align: left;
+  }
+  .drug-item:hover, .drug-item.active { background: var(--mauve); color: var(--bg); }
+  .drug-action {
+    margin-top: 1rem; padding-top: 1rem; border-top: 3px dashed var(--card-border);
+    font-size: 1.1rem; line-height: 1.4; color: var(--text-muted);
+  }
+  .drug-action strong { color: var(--mauve); display: block; margin-bottom: 0.3rem; font-size: 1.3rem; }
+
+  #intro {
+    position: fixed; inset: 0; z-index: 1000; background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem;
+    background-image: conic-gradient(var(--pink) 90deg, transparent 90deg 180deg, var(--pink) 180deg 270deg, transparent 270deg);
+    background-size: 40px 40px;
+    transition: opacity 0.3s;
+  }
+  #intro.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+  
+  .intro-glass {
+    background: var(--bg); border: 4px solid var(--card-border); box-shadow: 8px 8px 0px var(--shadow);
+    padding: 3rem; max-width: 600px; text-align: center;
+  }
+  .intro-title { font-size: 2.5rem; color: var(--mauve); margin-bottom: 1rem; }
+  .intro-text { color: var(--text); line-height: 1.4; margin-bottom: 2rem; font-size: 1.3rem; }
+  
+  .btn {
+    padding: 0.8rem 1.5rem; font-size: 1.4rem;
+    border: 3px solid var(--card-border); box-shadow: 4px 4px 0px var(--shadow); cursor: pointer;
+  }
+  .btn-primary { background: var(--mauve); color: var(--bg); }
+  .btn-ghost { background: transparent; color: var(--mauve); margin-left: 0.5rem; }
+</style>
+</head>
+<body>
+
+<div id="intro">
+  <div class="intro-glass">
+    <h1 class="intro-title">HI, I AM NOVA</h1>
+    <p class="intro-text">
+      PCOS IS DRIVEN BY A SELF-REINFORCING CYCLE BETWEEN INSULIN RESISTANCE AND HYPERANDROGENISM.
+      EXPLORE 29 RISK LOCI ON A LIVE DNA HELIX, EXAMINE HOW EACH VARIANT DISRUPTS SPECIFIC PATHWAYS,
+      COMPARE THE FOUR CLINICAL SUBTYPES, AND REVIEW THE ACTION OF EMERGING PRECISION THERAPIES.
+    </p>
+    <div>
+      <button class="btn btn-primary" id="start-btn">START EXPLORING</button>
+      <button class="btn btn-ghost" id="skip-btn">SKIP</button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="header-left">
+    <button class="sidebar-toggle-btn" id="sidebar-toggle">
+      <svg width="24" height="24" viewBox="0 0 16 16" shape-rendering="crispEdges" fill="currentColor">
+        <path d="M2,3 h12 v2 h-12 z M2,7 h12 v2 h-12 z M2,11 h12 v2 h-12 z"/>
+      </svg>
+    </button>
+    <div class="logo">PolyNexus</div>
+  </div>
+  <div class="header-right">
+    <div class="toggle-group">
+      <span>LIGHT</span>
+      <div class="switch theme-switch" id="theme-switch"></div>
+      <span>DARK</span>
+    </div>
+    
+    <!-- NEW SHARE DROPDOWN -->
+    <div class="share-container">
+      <button class="share-btn" id="share-btn">SHARE</button>
+      <div class="share-menu" id="share-menu">
+        <button class="share-item" id="copy-link">COPY LINK</button>
+        <button class="share-item" id="native-share">SHARE VIA APP</button>
+        <a class="share-item" id="share-whatsapp" target="_blank" rel="noopener">WHATSAPP</a>
+        <a class="share-item" id="share-twitter" target="_blank" rel="noopener">X (TWITTER)</a>
+        <a class="share-item" id="share-facebook" target="_blank" rel="noopener">FACEBOOK</a>
+      </div>
+    </div>
+    
+    <button id="replay-btn" class="replay-btn">REPLAY INTRO</button>
+  </div>
+</header>
+
+<div class="app" id="app-container">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">SUBTYPE SELECTOR</div>
+      <div class="subtype-grid">
+        <button class="subtype-btn active" data-sub="HA">HA-PCOS</button>
+        <button class="subtype-btn" data-sub="OB">OB-PCOS</button>
+        <button class="subtype-btn" data-sub="SHBG">SHBG-PCOS</button>
+        <button class="subtype-btn" data-sub="LH">LH-PCOS</button>
+      </div>
+    </div>
+    <div class="sidebar-label" style="padding: 1rem 1rem 0 1rem;">RISK ALLELES (29)</div>
+    <div class="search-wrap">
+      <input class="search-input" id="search" placeholder="SEARCH GENE OR RSID..." />
+    </div>
+    <div class="loci-list" id="loci-list"></div>
+  </aside>
+
+  <div class="stage">
+    <div id="canvas-wrap">
+      <div id="dna-canvas"></div>
+      <div id="pathway-view"></div>
+
+      <div class="info-bar" id="info-bar">
+        <div class="drag-handle">⋮⋮</div>
+        <div style="min-width:140px; pointer-events: none;">
+          <h3 id="info-title">DENND1A</h3>
+          <div class="rs-tag" id="info-rs">rs9696009 · 9q33.3</div>
+        </div>
+        <div class="impact" style="pointer-events: none;">
+          <strong>MOLECULAR IMPACT</strong>
+          <p id="info-impact">ELEVATED DENND1A.V ISOFORM INCREASES CYP17A1 ACTIVITY, DRIVING EXCESS TESTOSTERONE SYNTHESIS IN OVARIAN THECA CELLS.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="view-toggle">
+      <button class="view-btn active" data-view="dna">DNA HELIX</button>
+      <button class="view-btn" data-view="pathway">VISUAL PATHWAY</button>
+    </div>
+    
+    <div class="zoom-controls" id="dna-zoom-controls">
+      <button class="zoom-btn" id="zoom-in">
+        <svg width="20" height="20" viewBox="0 0 16 16" shape-rendering="crispEdges" fill="currentColor"><path d="M7,2 h2 v5 h5 v2 h-5 v5 h-2 v-5 h-5 v-2 h5 z"/></svg>
+      </button>
+      <button class="zoom-btn" id="zoom-out">
+        <svg width="20" height="20" viewBox="0 0 16 16" shape-rendering="crispEdges" fill="currentColor"><path d="M2,7 h12 v2 h-12 z"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// --- NEW WORKING SHARE LOGIC ---
+const shareBtn = document.getElementById('share-btn');
+const shareMenu = document.getElementById('share-menu');
+const pageUrl = encodeURIComponent(window.location.href);
+const pageTitle = encodeURIComponent("PolyNexus: PCOS Genetics & Drug Simulator");
+
+// Toggle menu
+shareBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  shareMenu.classList.toggle('active');
+});
+
+// Close menu when clicking outside
+document.addEventListener('click', (e) => {
+  if (!shareBtn.contains(e.target) && !shareMenu.contains(e.target)) {
+    shareMenu.classList.remove('active');
+  }
+});
+
+// 1. Copy Link
+document.getElementById('copy-link').addEventListener('click', () => {
+  navigator.clipboard.writeText(window.location.href).then(() => {
+    const btn = document.getElementById('copy-link');
+    const originalText = btn.innerText;
+    btn.innerText = 'COPIED!';
+    btn.style.background = 'var(--mauve)';
+    btn.style.color = 'var(--bg)';
+    setTimeout(() => {
+      btn.innerText = originalText;
+      btn.style.background = '';
+      btn.style.color = '';
+      shareMenu.classList.remove('active');
+    }, 1500);
+  }).catch(() => {
+    alert('Failed to copy. Please copy the URL manually.');
+  });
+});
+
+// 2. Native Share (Works for Instagram on Mobile)
+document.getElementById('native-share').addEventListener('click', () => {
+  if (navigator.share) {
+    navigator.share({
+      title: 'PolyNexus: PCOS Genetics & Drug Simulator',
+      text: 'Explore the genetics of PCOS in 3D!',
+      url: window.location.href,
+    }).catch(console.error);
+  } else {
+    alert('Native sharing is not supported on this browser. Please use Copy Link.');
+  }
+  shareMenu.classList.remove('active');
+});
+
+// 3. Set Social Links dynamically
+document.getElementById('share-whatsapp').href = `https://wa.me/?text=${pageTitle}%20${pageUrl}`;
+document.getElementById('share-twitter').href = `https://twitter.com/intent/tweet?text=${pageTitle}&url=${pageUrl}`;
+document.getElementById('share-facebook').href = `https://www.facebook.com/sharer/sharer.php?u=${pageUrl}`;
+
+
+// --- REST OF THE APP LOGIC ---
+const LOCI = [
+  { id:"FSHB", rs:"rs11031005", chr:"11p14.1", impact:"Reduced FSHB transcription lowers FSH and elevates the LH/FSH ratio.", subtype:"LH", organs:["brain","ovary"], tags:["gonadotropin"] },
+  { id:"FSHR", rs:"rs6165", chr:"2p16.3", impact:"Altered FSH receptor sensitivity reduces granulosa-cell responsiveness.", subtype:"LH", organs:["ovary"], tags:["gonadotropin","follicle"] },
+  { id:"SHBG", rs:"rs1641518", chr:"17p13.1", impact:"Lower circulating SHBG increases free testosterone bioavailability.", subtype:"SHBG", organs:["liver"], tags:["shbg"] },
+  { id:"AMH", rs:"rs732310", chr:"19p13.3", impact:"Elevated AMH suppresses FSH action within the follicle.", subtype:"LH", organs:["ovary"], tags:["follicle"] },
+  { id:"INHBB", rs:"rs6712151", chr:"2q14.2", impact:"Perturbed inhibin B feedback alters pituitary FSH secretion.", subtype:"LH", organs:["brain","ovary"], tags:["gonadotropin"] },
+  { id:"DENND1A", rs:"rs9696009", chr:"9q33.3", impact:"Risk alleles increase a truncated DENND1A isoform that enhances CYP17A1 activity.", subtype:"HA", organs:["ovary"], tags:["androgen"] },
+  { id:"THADA", rs:"rs7563201", chr:"2p21", impact:"Variants influence beta-cell function and peripheral insulin sensitivity.", subtype:"OB", organs:["pancreas","muscle"], tags:["metabolic","insulin"] },
+  { id:"YAP1", rs:"rs11225154", chr:"11q22.1", impact:"Disrupted Hippo-pathway signalling impairs normal follicle maturation.", subtype:"LH", organs:["ovary"], tags:["follicle"] },
+  { id:"RAD50", rs:"rs13164856", chr:"5q31.1", impact:"Altered DNA-repair and inflammatory tone may contribute to ovarian dysfunction.", subtype:"HA", organs:["ovary"], tags:["other"] },
+  { id:"ERBB3", rs:"rs2271194", chr:"12q13.2", impact:"Modulates growth-factor and insulin-related signalling pathways.", subtype:"OB", organs:["liver","adipose"], tags:["metabolic"] },
+  { id:"ERBB4", rs:"rs2178575", chr:"2q34", impact:"Risk alleles alter receptor-tyrosine-kinase signalling in metabolic tissues.", subtype:"OB", organs:["adipose","muscle"], tags:["metabolic"] },
+  { id:"ZBTB16", rs:"rs1784692", chr:"11q23.2", impact:"Affects transcriptional programmes relevant to metabolic pathways.", subtype:"HA", organs:["ovary"], tags:["other"] },
+  { id:"FTO", rs:"rs80437587", chr:"16q12.2", impact:"Increases adiposity and thereby insulin resistance.", subtype:"OB", organs:["adipose","brain"], tags:["metabolic","insulin"] },
+  { id:"KRR1", rs:"rs1795379", chr:"12q21.2", impact:"Variants link ribosome biogenesis to reproductive and metabolic features.", subtype:"OB", organs:["liver","muscle"], tags:["metabolic"] },
+  { id:"TOX3", rs:"rs8043701", chr:"16q12.1", impact:"High early-fetal expression suggests a role in developmental priming.", subtype:"HA", organs:["ovary"], tags:["other"] },
+  { id:"LHCGR", rs:"rs13405728", chr:"2p16.3", impact:"Increased LH-receptor sensitivity amplifies theca-cell androgen production.", subtype:"HA", organs:["ovary"], tags:["androgen","gonadotropin"] },
+  { id:"INSR", rs:"rs2059807", chr:"19p13.2", impact:"Impaired insulin-receptor signalling worsens hyperinsulinaemia.", subtype:"OB", organs:["muscle","adipose","ovary"], tags:["insulin","metabolic"] },
+  { id:"CYP17A1", rs:"rs743572", chr:"10q24.3", impact:"Increased 17α-hydroxylase activity raises androgen flux within theca cells.", subtype:"HA", organs:["ovary"], tags:["androgen"] },
+  { id:"CYP19A1", rs:"rs2414096", chr:"15q21.2", impact:"Reduced aromatase activity limits local conversion of androgens.", subtype:"HA", organs:["ovary"], tags:["androgen"] },
+  { id:"MAPRE1", rs:"rs853854", chr:"20q11.21", impact:"Genome-wide significant association; mechanism under investigation.", subtype:"HA", organs:["ovary"], tags:["other"] },
+  { id:"PLGRKT", rs:"rs10739076", chr:"9p24.1", impact:"Novel European locus reaching genome-wide significance.", subtype:"HA", organs:["ovary"], tags:["other"] },
+  { id:"FANCC", rs:"rs7864171", chr:"9q22.32", impact:"Consistent association; may influence cell-cycle and DNA-repair.", subtype:"HA", organs:["ovary"], tags:["other"] },
+  { id:"NEIL2", rs:"rs804279", chr:"8p23.1", impact:"Possible contribution to developmental or inflammatory pathways.", subtype:"HA", organs:["ovary"], tags:["other"] },
+  { id:"HMGA2", rs:"rs11178569", chr:"12q14.3", impact:"Candidate for developmental origin of PCOS risk.", subtype:"LH", organs:["ovary"], tags:["other"] },
+  { id:"FBN3", rs:"rs12460954", chr:"19p13.2", impact:"Extracellular-matrix and TGF-β regulation; fetal programming.", subtype:"HA", organs:["ovary"], tags:["other"] },
+  { id:"CHEK2", rs:"rs17879961", chr:"22q12.1", impact:"Emerging multi-ancestry signal in DNA-damage response.", subtype:"HA", organs:["ovary"], tags:["other"] },
+  { id:"MSH6", rs:"rs1800932", chr:"2p16.3", impact:"Mismatch-repair gene highlighted in multi-ancestry analyses.", subtype:"HA", organs:["ovary"], tags:["other"] },
+  { id:"ID4", rs:"rs9395459", chr:"6p22.3", impact:"Transcriptional regulator within the expanded 29-locus set.", subtype:"LH", organs:["ovary"], tags:["other"] },
+  { id:"RAB5B", rs:"rs2271194", chr:"12q13.2", impact:"Endocytic trafficking linked to insulin and growth-factor signalling.", subtype:"OB", organs:["adipose","liver"], tags:["metabolic"] }
+];
+
+const SUBTYPE_INFO = {
+  HA: "HYPERANDROGENIC — HIGH TESTOSTERONE/DHEA-S.",
+  OB: "OBESITY — HIGH BMI & INSULIN RESISTANCE.",
+  SHBG: "HIGH-SHBG — HIGHEST SHBG, LOWEST BMI.",
+  LH: "HIGH LH–AMH — ELEVATED LH/FSH/AMH."
+};
+
+function getDrugActionOnAllele(drugKey, locus) {
+  const tags = locus.tags || [];
+  const id = locus.id;
+  if (drugKey === "artemisinin") return tags.includes("androgen") || id === "DENND1A" ? `ARTEMISININS ACT DIRECTLY ON THE ANDROGEN-SYNTHESIS PATHWAY AFFECTED BY ${id}.` : `NO DIRECT EVIDENCE THAT ARTEMISININS ACT ON ${id}.`;
+  if (drugKey === "nk3r") return tags.includes("gonadotropin") || id === "FSHB" ? `NK3R ANTAGONISTS TARGET THE CENTRAL GNRH PULSE GENERATOR DRIVEN BY ${id}.` : `NO DIRECT EVIDENCE THAT NK3R ANTAGONISTS ACT ON ${id}.`;
+  if (drugKey === "metformin") return tags.includes("insulin") || tags.includes("metabolic") ? `METFORMIN IMPROVES INSULIN SENSITIVITY, THE KEY AMPLIFIER LINKED TO ${id}.` : `NO DIRECT EVIDENCE THAT METFORMIN ACTS ON ${id}.`;
+  if (drugKey === "glp1") return tags.includes("metabolic") || tags.includes("insulin") ? `GLP-1 RECEPTOR AGONISTS ADDRESS THE OBESITY/INSULIN-RESISTANCE AXIS ${id} CONTRIBUTES TO.` : `NO DIRECT EVIDENCE THAT GLP-1 RAS ACT ON ${id}.`;
+  if (drugKey === "coc") return tags.includes("androgen") || id === "SHBG" ? `COMBINED ORAL CONTRACEPTIVES SUPPRESS LH AND RAISE SHBG, COUNTERING ${id}.` : `NO DIRECT EVIDENCE THAT COCS ACT ON ${id}.`;
+  return `NO SPECIFIC DATA ON THE INTERACTION BETWEEN THIS THERAPY AND ${id}.`;
+}
+
+const DRUGS = {
+  metformin: "METFORMIN", glp1: "GLP-1 AGONISTS", sglt2: "SGLT2 INHIBITORS", coc: "COCS", nk3r: "NK3R ANTAGONISTS", artemisinin: "ARTEMISININS", lifestyle: "LIFESTYLE"
+};
+
+let currentLocus = LOCI[5];
+let currentSubtype = "HA";
+let currentDrug = null;
+let viewMode = "dna";
+let scene, camera, renderer, dnaGroup, controls;
+let variantSphere, variantRod, variantLight; 
+
+let pathwayTransform = { scale: 1, x: 0, y: 0 };
+let isPathwayDragging = false;
+let startMouseX = 0;
+let startMouseY = 0;
+
+const colors = { pink: 0xE8CFCF, mauve: 0x6B4A4A, rose: 0xC48B8A, normal: 0xB0A0A0 };
+
+document.getElementById('theme-switch').onclick = () => {
+  document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+};
+
+document.getElementById('sidebar-toggle').onclick = () => {
+  const app = document.getElementById('app-container');
+  app.classList.toggle('sidebar-collapsed');
+  setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 350);
+};
+
+const introEl = document.getElementById('intro');
+const replayBtn = document.getElementById('replay-btn');
+document.getElementById('start-btn').onclick = () => { introEl.classList.add('hidden'); replayBtn.style.display = 'block'; };
+document.getElementById('skip-btn').onclick = () => { introEl.classList.add('hidden'); replayBtn.style.display = 'block'; };
+replayBtn.onclick = () => { introEl.classList.remove('hidden'); replayBtn.style.display = 'none'; };
+
+const infoBar = document.getElementById('info-bar');
+let isDragging = false;
+let offsetX, offsetY;
+
+infoBar.addEventListener('mousedown', (e) => {
+    if(e.target.tagName.toLowerCase() === 'p' || e.target.tagName.toLowerCase() === 'h3') return;
+    isDragging = true;
+    offsetX = e.clientX - infoBar.getBoundingClientRect().left;
+    offsetY = e.clientY - infoBar.getBoundingClientRect().top;
+    infoBar.style.marginLeft = '0';
+});
+
+document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    infoBar.style.left = `${e.clientX - offsetX}px`;
+    infoBar.style.top = `${e.clientY - offsetY}px`;
+});
+
+document.addEventListener('mouseup', () => { isDragging = false; });
+
+function renderLociList(filter = "") {
+  const list = document.getElementById('loci-list');
+  const q = filter.toLowerCase();
+  list.innerHTML = LOCI.filter(l => l.id.toLowerCase().includes(q) || l.rs.toLowerCase().includes(q))
+    .map(l => `<div class="locus-item ${l.id === currentLocus.id ? 'active' : ''}" data-id="${l.id}"><span>${l.id}</span><span class="rs">${l.rs}</span></div>`).join('');
+  list.querySelectorAll('.locus-item').forEach(el => el.onclick = () => selectLocus(el.dataset.id));
+}
+document.getElementById('search').oninput = e => renderLociList(e.target.value);
+
+document.querySelectorAll('.subtype-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.subtype-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentSubtype = btn.dataset.sub;
+    updateInfoBar();
+    if (viewMode === 'pathway') renderPathwayView();
+  };
+});
+
+function selectLocus(id) {
+  currentLocus = LOCI.find(l => l.id === id);
+  renderLociList(document.getElementById('search').value);
+  updateInfoBar();
+  highlightSNP(id);
+  
+  pathwayTransform = { scale: 1, x: 0, y: 0 };
+  
+  if (viewMode === 'pathway') renderPathwayView();
+}
+
+function updateInfoBar() {
+  const L = currentLocus;
+  document.getElementById('info-title').textContent = L.id;
+  document.getElementById('info-rs').textContent = `${L.rs} · ${L.chr}`;
+  document.getElementById('info-impact').textContent = L.impact.toUpperCase();
+}
+
+function createTextSprite(message, colorHex) {
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  canvas.width = 128;
+  canvas.height = 128;
+  context.clearRect(0, 0, 128, 128);
+  context.font = "bold 80px 'VT323', monospace";
+  context.fillStyle = colorHex;
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(message, 64, 64);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.NearestFilter; 
+  texture.magFilter = THREE.NearestFilter;
+  const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
+  const sprite = new THREE.Sprite(spriteMaterial);
+  sprite.scale.set(2.5, 2.5, 1);
+  return sprite;
+}
+
+function initDNA() {
+  const container = document.getElementById('dna-canvas');
+  const w = container.clientWidth, h = container.clientHeight;
+
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(40, w / h, 0.1, 200);
+  camera.position.set(0, 0, 42);
+
+  renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
+  renderer.setSize(w, h);
+  renderer.setPixelRatio(1); 
+  container.appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+  const dir = new THREE.DirectionalLight(0xffffff, 0.5);
+  dir.position.set(5, 10, 8);
+  scene.add(dir);
+
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.1;
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 2.0;
+  controls.enablePan = false;
+  controls.minDistance = 20;
+  controls.maxDistance = 70;
+
+  dnaGroup = new THREE.Group();
+  scene.add(dnaGroup);
+
+  const helixRadius = 3, helixHeight = 24, turns = 3.5, numPairs = 45;
+  const points1 = [], points2 = [];
+
+  for (let i = 0; i <= 100; i++) {
+    const t = i / 100;
+    const y = (t - 0.5) * helixHeight;
+    const angle = t * Math.PI * 2 * turns;
+    points1.push(new THREE.Vector3(Math.cos(angle) * helixRadius, y, Math.sin(angle) * helixRadius));
+    points2.push(new THREE.Vector3(Math.cos(angle + Math.PI) * helixRadius, y, Math.sin(angle + Math.PI) * helixRadius));
+  }
+
+  const curve1 = new THREE.CatmullRomCurve3(points1);
+  const curve2 = new THREE.CatmullRomCurve3(points2);
+  
+  const tubeGeo1 = new THREE.TubeGeometry(curve1, 60, 0.3, 4, false); 
+  const tubeGeo2 = new THREE.TubeGeometry(curve2, 60, 0.3, 4, false);
+  
+  const backboneMat = new THREE.MeshLambertMaterial({ color: colors.pink, flatShading: true });
+  dnaGroup.add(new THREE.Mesh(tubeGeo1, backboneMat), new THREE.Mesh(tubeGeo2, backboneMat));
+
+  const label5_top = createTextSprite("5'", "#6B4A4A");
+  label5_top.position.copy(points1[0]);
+  label5_top.position.y -= 1.5;
+  dnaGroup.add(label5_top);
+
+  const label3_top = createTextSprite("3'", "#6B4A4A"); 
+  label3_top.position.copy(points1[100]);
+  label3_top.position.y += 1.5;
+  dnaGroup.add(label3_top);
+
+  const label3_bot = createTextSprite("3'", "#6B4A4A"); 
+  label3_bot.position.copy(points2[0]);
+  label3_bot.position.y -= 1.5;
+  dnaGroup.add(label3_bot);
+
+  const label5_bot = createTextSprite("5'", "#6B4A4A"); 
+  label5_bot.position.copy(points2[100]);
+  label5_bot.position.y += 1.5;
+  dnaGroup.add(label5_bot);
+
+  const boxGeo = new THREE.BoxGeometry(0.7, 0.7, 0.7);
+  const rodGeo = new THREE.CylinderGeometry(0.15, 0.15, 1, 4); 
+  const normalMat = new THREE.MeshLambertMaterial({ color: colors.mauve, flatShading: true });
+  const rodMat = new THREE.MeshLambertMaterial({ color: colors.normal, flatShading: true });
+
+  for (let i = 0; i < numPairs; i++) {
+    const t = i / (numPairs - 1), y = (t - 0.5) * helixHeight, angle = t * Math.PI * 2 * turns;
+    const pos1 = new THREE.Vector3(Math.cos(angle) * helixRadius, y, Math.sin(angle) * helixRadius);
+    const pos2 = new THREE.Vector3(Math.cos(angle + Math.PI) * helixRadius, y, Math.sin(angle + Math.PI) * helixRadius);
+
+    const s1 = new THREE.Mesh(boxGeo, normalMat); s1.position.copy(pos1); dnaGroup.add(s1);
+    const s2 = new THREE.Mesh(boxGeo, normalMat); s2.position.copy(pos2); dnaGroup.add(s2);
+
+    const rod = new THREE.Mesh(rodGeo, rodMat);
+    rod.position.copy(new THREE.Vector3().addVectors(pos1, pos2).multiplyScalar(0.5));
+    rod.lookAt(pos2); rod.rotateX(Math.PI / 2); rod.scale.set(1, helixRadius * 2, 1); dnaGroup.add(rod);
+  }
+
+  const variantMat = new THREE.MeshBasicMaterial({ color: 0xFF0000 }); 
+  variantSphere = new THREE.Mesh(boxGeo, variantMat);
+  variantSphere.scale.set(1.5, 1.5, 1.5);
+  variantRod = new THREE.Mesh(rodGeo, new THREE.MeshBasicMaterial({ color: 0xFF0000 }));
+  
+  variantLight = new THREE.PointLight(0xFF0000, 2, 20); 
+  variantSphere.add(variantLight);
+  
+  dnaGroup.add(variantSphere, variantRod);
+
+  function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+
+    const scale = 1.5 + Math.sin(Date.now() * 0.005) * 0.2;
+    variantSphere.scale.set(scale, scale, scale);
+
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  window.addEventListener('resize', () => {
+    const w = container.clientWidth, h = container.clientHeight;
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+  });
+}
+
+function highlightSNP(id) {
+  if (!variantSphere) return;
+  const idx = LOCI.findIndex(l => l.id === id);
+  const t = (idx % 10) / 10; 
+  const y = (t - 0.5) * 24; 
+  const angle = t * Math.PI * 2 * 3.5; 
+
+  const pos1 = new THREE.Vector3(Math.cos(angle) * 3, y, Math.sin(angle) * 3);
+  const pos2 = new THREE.Vector3(Math.cos(angle + Math.PI) * 3, y, Math.sin(angle + Math.PI) * 3);
+
+  variantSphere.position.copy(pos1);
+  variantRod.position.copy(new THREE.Vector3().addVectors(pos1, pos2).multiplyScalar(0.5));
+  variantRod.lookAt(pos2); variantRod.rotateX(Math.PI / 2); variantRod.scale.set(1, 6, 1);
+}
+
+document.getElementById('zoom-in').onclick = () => { controls.dollyIn(1.2); controls.update(); };
+document.getElementById('zoom-out').onclick = () => { controls.dollyOut(1.2); controls.update(); };
+
+document.querySelectorAll('.view-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    viewMode = btn.dataset.view;
+    
+    document.getElementById('dna-canvas').style.display = viewMode === 'dna' ? 'block' : 'none';
+    document.getElementById('info-bar').style.display = viewMode === 'dna' ? 'flex' : 'none';
+    document.getElementById('dna-zoom-controls').style.display = viewMode === 'dna' ? 'flex' : 'none';
+    document.getElementById('pathway-view').style.display = viewMode === 'pathway' ? 'block' : 'none';
+    
+    if (viewMode === 'pathway') {
+      pathwayTransform = { scale: 1, x: 0, y: 0 };
+      renderPathwayView();
+    }
+  };
+});
+
+function applyPathwayTransform() {
+  const svg = document.getElementById('pathway-svg-element');
+  if (svg) {
+    svg.style.transform = `translate(${pathwayTransform.x}px, ${pathwayTransform.y}px) scale(${pathwayTransform.scale})`;
+  }
+}
+
+window.zoomPathwayIn = () => {
+  pathwayTransform.scale = Math.min(3, pathwayTransform.scale + 0.2);
+  applyPathwayTransform();
+};
+window.zoomPathwayOut = () => {
+  pathwayTransform.scale = Math.max(0.5, pathwayTransform.scale - 0.2);
+  applyPathwayTransform();
+};
+
+function initPathwayInteraction() {
+  const svgWrap = document.querySelector('.svg-wrap');
+  if(!svgWrap) return;
+
+  svgWrap.addEventListener('mousedown', (e) => {
+    if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return; 
+    isPathwayDragging = true;
+    startMouseX = e.clientX - pathwayTransform.x;
+    startMouseY = e.clientY - pathwayTransform.y;
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isPathwayDragging) return;
+    pathwayTransform.x = e.clientX - startMouseX;
+    pathwayTransform.y = e.clientY - startMouseY;
+    applyPathwayTransform();
+  });
+
+  document.addEventListener('mouseup', () => {
+    isPathwayDragging = false;
+  });
+
+  svgWrap.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const direction = e.deltaY > 0 ? -1 : 1;
+    const newScale = Math.max(0.5, Math.min(pathwayTransform.scale + direction * 0.1, 3));
+    pathwayTransform.scale = newScale;
+    applyPathwayTransform();
+  }, { passive: false });
+
+  svgWrap.addEventListener('touchstart', (e) => {
+    if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return; 
+    isPathwayDragging = true;
+    const touch = e.touches[0];
+    startMouseX = touch.clientX - pathwayTransform.x;
+    startMouseY = touch.clientY - pathwayTransform.y;
+  });
+  svgWrap.addEventListener('touchmove', (e) => {
+    if (!isPathwayDragging) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    pathwayTransform.x = touch.clientX - startMouseX;
+    pathwayTransform.y = touch.clientY - startMouseY;
+    applyPathwayTransform();
+  }, { passive: false });
+  svgWrap.addEventListener('touchend', () => {
+    isPathwayDragging = false;
+  });
+}
+
+function renderPathwayView() {
+  const L = currentLocus;
+  const el = document.getElementById('pathway-view');
+  const active = new Set(L.organs || ["ovary"]);
+
+  const showBrain = active.has("brain") || currentSubtype === "LH" || L.tags?.includes("gonadotropin");
+  const showOvary = true; 
+  const showLiver = active.has("liver") || currentSubtype === "SHBG" || L.tags?.includes("shbg");
+  const showAdipose = active.has("adipose") || currentSubtype === "OB" || L.tags?.includes("metabolic");
+  const showMuscle = active.has("muscle") || currentSubtype === "OB" || L.tags?.includes("insulin");
+  const showPancreas = active.has("pancreas") || L.tags?.includes("insulin");
+
+  const flowIR_HA = currentSubtype === "OB" || currentSubtype === "HA" || L.tags?.includes("insulin") || L.tags?.includes("androgen");
+  const flowBrain_Ovary = showBrain;
+  const flowLiver_HA = showLiver;
+  const flowAdipose_IR = showAdipose;
+  const flowMuscle_IR = showMuscle;
+
+  el.innerHTML = `
+    <div class="pathway-layout">
+      <div class="pathway-main">
+        <div class="pathway-header">
+          <h3>${L.id} · ${currentSubtype}-PCOS</h3>
+          <span>${SUBTYPE_INFO[currentSubtype]}</span>
+        </div>
+
+        <div class="svg-wrap">
+          <svg id="pathway-svg-element" class="pathway-svg" viewBox="0 0 640 360" preserveAspectRatio="xMidYMid meet">
+            <path class="flow-line ${flowBrain_Ovary ? 'active' : ''}" d="M120,80 L200,80 L200,140 L280,140 L280,160" />
+            <path class="flow-line ${flowIR_HA ? 'active' : ''}" d="M200,280 L320,280 L320,240 L440,240 L440,280" />
+            <path class="flow-line ${flowIR_HA ? 'active' : ''}" d="M440,280 L320,280 L320,320 L200,320 L200,280" />
+            <path class="flow-line ${flowLiver_HA ? 'active' : ''}" d="M520,90 L520,180 L440,180 L440,260" />
+            <path class="flow-line ${flowAdipose_IR ? 'active' : ''}" d="M90,310 L150,310 L150,290 L200,290" />
+            <path class="flow-line ${flowMuscle_IR ? 'active' : ''}" d="M90,210 L150,210 L150,250 L200,250" />
+            <path class="flow-line ${showOvary ? 'active' : ''}" d="M280,180 L360,180 L360,200 L440,200 L440,260" />
+
+            <g class="node ${showBrain ? 'node-active' : 'node-dim'}" transform="translate(88,48)">
+              <rect class="node-bg" width="64" height="64" />
+              <text class="node-label" x="32" y="28">BRAIN</text>
+              <text class="node-sub" x="32" y="44">GNRH</text>
+            </g>
+
+            <g class="node ${showOvary ? 'node-active' : 'node-dim'}" transform="translate(242,137)">
+              <rect class="node-bg" width="76" height="76" />
+              <text class="node-label" x="38" y="34">OVARY</text>
+              <text class="node-sub" x="38" y="50">THECA</text>
+            </g>
+
+            <g class="node ${showLiver ? 'node-active' : 'node-dim'}" transform="translate(488,58)">
+              <rect class="node-bg" width="64" height="64" />
+              <text class="node-label" x="32" y="28">LIVER</text>
+              <text class="node-sub" x="32" y="44">SHBG</text>
+            </g>
+
+            <g class="node ${flowIR_HA ? 'node-active' : 'node-dim'}" transform="translate(166,246)">
+              <rect class="node-bg" width="68" height="68" />
+              <text class="node-label" x="34" y="30">IR</text>
+              <text class="node-sub" x="34" y="46">INSULIN</text>
+            </g>
+
+            <g class="node ${flowIR_HA ? 'node-active' : 'node-dim'}" transform="translate(406,246)">
+              <rect class="node-bg" width="68" height="68" />
+              <text class="node-label" x="34" y="30">HA</text>
+              <text class="node-sub" x="34" y="46">ANDROGEN</text>
+            </g>
+
+            <g class="node ${showAdipose ? 'node-active' : 'node-dim'}" transform="translate(56,282)">
+              <rect class="node-bg" width="56" height="56" />
+              <text class="node-label" x="28" y="32">FAT</text>
+            </g>
+
+            <g class="node ${showMuscle ? 'node-active' : 'node-dim'}" transform="translate(56,182)">
+              <rect class="node-bg" width="56" height="56" />
+              <text class="node-label" x="28" y="32">MUSCLE</text>
+            </g>
+
+            <g class="node ${showPancreas ? 'node-active' : 'node-dim'}" transform="translate(132,122)">
+              <rect class="node-bg" width="56" height="56" />
+              <text class="node-label" x="28" y="32">PANCREAS</text>
+            </g>
+          </svg>
+          
+          <div class="pathway-zoom-controls">
+            <button class="pathway-zoom-btn" onclick="zoomPathwayIn()">+</button>
+            <button class="pathway-zoom-btn" onclick="zoomPathwayOut()">-</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="pathway-side">
+        <h4>SELECT THERAPY</h4>
+        <div class="drug-list">
+          ${Object.entries(DRUGS).map(([k, name]) => `
+            <button class="drug-item ${currentDrug===k?'active':''}" data-drug="${k}">${name}</button>
+          `).join('')}
+        </div>
+        <div class="drug-action" id="drug-action">
+          <strong>SELECT A DRUG</strong>
+          CHOOSE A DRUG TO SEE ITS EFFECT ON ${L.id}.
+        </div>
+      </div>
+    </div>
+  `;
+
+  initPathwayInteraction();
+  applyPathwayTransform();
+
+  el.querySelectorAll('.drug-item').forEach(btn => {
+    btn.onclick = () => {
+      currentDrug = btn.dataset.drug;
+      el.querySelectorAll('.drug-item').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const text = getDrugActionOnAllele(currentDrug, currentLocus);
+      document.getElementById('drug-action').innerHTML = `<strong>${DRUGS[currentDrug]} × ${currentLocus.id}</strong>${text}`;
+    };
+  });
+
+  if (currentDrug) {
+    const text = getDrugActionOnAllele(currentDrug, currentLocus);
+    document.getElementById('drug-action').innerHTML = `<strong>${DRUGS[currentDrug]} × ${currentLocus.id}</strong>${text}`;
+  }
+}
+
+renderLociList();
+updateInfoBar();
+initDNA();
+highlightSNP(currentLocus.id);
+</script>
+</body>
+</html>
